@@ -53,7 +53,7 @@ def initialize_conversation(character:Character, topic=''):
     instructions = f'You are playing the character of {character.name}.\n{character.description}'
     return instructions, task
 
-def respond_prompt(character:Character, topic=''):
+def respond_prompt(character:Character):
     '''This function creates a prompt that responds to the previous response'''
     instructions = f'You are playing the character of {character.name}. \
     Move the conversation along in a fun way. \
