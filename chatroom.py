@@ -94,7 +94,7 @@ def openai_request_continue(instructions, previous_messages, model_engine='gpt-3
 
 
 # initialize conversation on the following topic
-topic = 'the nature of life'
+goal = 'open the door'
 conversation_rounds = 4
 
 
@@ -139,19 +139,19 @@ for round in range(conversation_rounds):
         text_color = agent.color
         name = agent.name
         if len(chatrooms['default'].messages) == 0:
-            instructions, task = initialize_conversation(agent, topic)
+            instructions, task = initialize_conversation(agent, goal)
             response = openai_request_initial(instructions, task)
         else:
-            instructions = respond_prompt(agent, topic)
+            instructions = respond_prompt(agent)
             response = openai_request_continue(instructions, get_recent_messages_from_chatroom())
         logging.debug(f'Response: {response}')
         try:
             j = json.loads(response)
             if j['message'].startswith('{') or j['message'].startswith('"'):
-                logging.info(f"Got a malformed message: {j['message']}")
+                logging.error(f"Got a malformed message: {j['message']}")
                 continue
         except:
-            logging.exception("Couldn't parse response.")
+            logging.exception(f"Could not parse response: {response}")
             continue
         # wait some seconds 
         time.sleep(2)
