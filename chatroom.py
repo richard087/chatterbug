@@ -1,12 +1,15 @@
 from dotenv import load_dotenv
 load_dotenv()
 import openai
-from pydantic import BaseModel, Field
 from typing import Dict, List
 import os
 import datetime as dt
 import time
 import json
+import logging
+
+#logging.basicConfig(level=logging.DEBUG)
+#openai.api_base='http://localhost:8001/v1'
 
 class Message:
     def __init__(self, message:str, name:str):
@@ -21,11 +24,7 @@ def send_message_to_chatroom(message:str, chatroom:str='default', username:str='
         chatrooms['default'] = ChatRoom()
     chatrooms[chatroom].messages.append(Message(message, username))
 def get_recent_messages_from_chatroom(chatroom:str='default'):
-    return  chatrooms[chatroom].messages[-3:]
-
-model='gpt-3.5-turbo'
-#openai.api_base='http://localhost:8001/v1'
-
+    return  chatrooms[chatroom].messages[-5:]
 
 chatrooms:Dict = {'default': ChatRoom()}
 
@@ -50,14 +49,15 @@ json_shot = 'For example: If your name were Bob and you wanted to say "Hi There!
 
 def initialize_conversation(character:Character, topic=''):
     """This function creates a prompt that initializes the conversation"""
-    task = f'You are playing the character of {character.name}. Begin a conversation on {topic} in a brief chat message. {json_shot}'
-    instructions = character.description
+    task = f'Begin a conversation on {topic} in a brief chat message. {json_shot}'
+    instructions = f'You are playing the character of {character.name}.\n{character.description}'
     return instructions, task
 
 def respond_prompt(character:Character, topic=''):
     '''This function creates a prompt that responds to the previous response'''
     instructions = f'You are playing the character of {character.name}. \
     Move the conversation along in a fun way. \
+    Never repeat a previous statement. \
     Reply in very brief chat messages, no more than a sentence or two. \
     Be funny and interesting. \
     If you have nothing interesting to say, say nothing. \
@@ -136,24 +136,29 @@ conversation = ''
 for round in range(conversation_rounds):
     for agent in agents:
         # initialize conversation
+        text_color = agent.color
+        name = agent.name
         if len(chatrooms['default'].messages) == 0:
-            print('Initializing conversation...')
-            text_color = agent.color
-            name = agent.name
             instructions, task = initialize_conversation(agent, topic)
             response = openai_request_initial(instructions, task)
         else:
-            text_color = agent.color
-            name = agent.name
             instructions = respond_prompt(agent, topic)
             response = openai_request_continue(instructions, get_recent_messages_from_chatroom())
-
+        logging.debug(f'Response: {response}')
+        try:
+            j = json.loads(response)
+            if j['message'].startswith('{') or j['message'].startswith('"'):
+                logging.info(f"Got a malformed message: {j['message']}")
+                continue
+        except:
+            logging.exception("Couldn't parse response.")
+            continue
         # wait some seconds 
         time.sleep(2)
 
         # add response to conversation after linebreak
         print(f'{name}: {response}')
-        send_message_to_chatroom(message=response, username=name)
+        send_message_to_chatroom(message=j['message'], username=name)
         conversation += ' ' + f'<p style="color: {text_color};"><b>{name}</b>: {response}</p> \n'
 
         filename = f'{path}/GPTconversation_{timestamp}.html'
