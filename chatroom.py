@@ -19,14 +19,11 @@ class Message:
     message:str
 class ChatRoom:
     messages:List[Message] = []
-def send_message_to_chatroom(message:str, chatroom:str='default', username:str='anonymous'):
-    if chatroom not in chatrooms.keys():
-        chatrooms['default'] = ChatRoom()
-    chatrooms[chatroom].messages.append(Message(message, username))
-def get_recent_messages_from_chatroom(chatroom:str='default'):
-    return  chatrooms[chatroom].messages[-5:]
+def send_message_to_chatroom(message:str, chatroom:ChatRoom, username:str='anonymous'):
+    chatroom.messages.append(Message(message, username))
+def get_recent_messages_from_chatroom(chatroom:ChatRoom, count:int = 5):
+    return  chatroom.messages[-count:]
 
-chatrooms:Dict = {'default': ChatRoom()}
 
 class Character:
     def __init__(self, color:str, name:str, description:str):
@@ -38,18 +35,11 @@ class Character:
     description:str
     #personality = {'openness':0, 'conscientiousness':0, 'extraversion':0, 'agreeableness':0, 'neuroticism':0}
 
-timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-
-# create a folder to store the conversations if it does not exist
-path = 'ChatGPT_conversations'
-if not os.path.exists(path):
-    os.makedirs(path)
-
-json_shot = 'For example: If your name were Bob and you wanted to say "Hi There!" you would write {"name": "Bob", "message": "Hi There!"}'
+_json_shot = 'For example: If your name were Bob and you wanted to say "Hi There!" you would write {"name": "Bob", "message": "Hi There!"}'
 
 def initialize_conversation(character:Character, topic=''):
     """This function creates a prompt that initializes the conversation"""
-    task = f'Begin a conversation on {topic} in a brief chat message. {json_shot}'
+    task = f'Begin a conversation on {topic} in a brief chat message. {_json_shot}'
     instructions = f'You are playing the character of {character.name}.\n{character.description}'
     return instructions, task
 
@@ -61,7 +51,7 @@ def respond_prompt(character:Character):
     Reply in very brief chat messages, no more than a sentence or two. \
     Be funny and interesting. \
     If you have nothing interesting to say, say nothing. \
-    {json_shot}'
+    {_json_shot}'
     instructions = character.description + instructions
     return instructions
 
@@ -92,75 +82,83 @@ def openai_request_continue(instructions, previous_messages, model_engine='gpt-3
     response = completion.choices[0].message.content
     return response
 
-
-# initialize conversation on the following topic
-goal = 'open the door'
-conversation_rounds = 4
-
-
-agents:List[Character] = []
-
-color = 'brown'
-character = {
-"name": 'Blackbeard',
-"description": 'You are a devious pirate from the 18th century who tends to swear and make violent threats. \
-    Your knowledge and worldview corresponds to that of a common pirate of that time. \
-    You are looking for a valuable treasure and trying to find where it is hidden. \
-    You try to steer the conversation back to the treasure no matter what.'}
-agents.append(Character(color=color, name=character['name'], description=character['description']))
-
-color = 'darkblue' 
-character = {
-"name": 'James',
-"description": 'You are a waifish French nobleman from the 18th century. \
-    Your knowledge and worldview corresponds to that of a common aristocrat of that time. \
-    You speak in a distinguished manner and are mildly offended by profanity. \
-    You have a treasure but are afraid the pirate wants to steal it. \
-    You are afraid of pirates but also curious to meet one.'}
-agents.append(Character(color=color, name=character['name'], description=character['description']))
-
-color = 'lightorange'
-character = {
-"name": 'Bernard',
-"description": 'You are a misanthropic bookseller of the 18th century. \
-    You are a grumpy, drunken, cynical, pessimistic, and at times depressive, whose sole pursuits in life appear to be drinking, smoking, reading, and insulting people. \
-    Your knowledge and worldview corresponds to that of an unwilling bookseller of the 20th century. \
-    You know that some of your books may contain hints about treasure. \
-    You hate both the pressures and responsibilities involved in retail, as well as your customers, with extreme passion. \
-    You try to survive each day of your blighted existence.'}
-agents.append(Character(color=color, name=character['name'], description=character['description']))
+if __name__ == '__main__':
+    
+    timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    # create a folder to store the conversations if it does not exist
+    path = 'ChatGPT_conversations'
+    if not os.path.exists(path):
+        os.makedirs(path)
 
 
+    # initialize conversation on the following topic
+    goal = 'open the door'
+    conversation_rounds = 4
+    chatroom = ChatRoom()
+    agents:List[Character] = []
 
-conversation = ''
-for round in range(conversation_rounds):
-    for agent in agents:
-        # initialize conversation
-        text_color = agent.color
-        name = agent.name
-        if len(chatrooms['default'].messages) == 0:
-            instructions, task = initialize_conversation(agent, goal)
-            response = openai_request_initial(instructions, task)
-        else:
-            instructions = respond_prompt(agent)
-            response = openai_request_continue(instructions, get_recent_messages_from_chatroom())
-        logging.debug(f'Response: {response}')
-        try:
-            j = json.loads(response)
-            if j['message'].startswith('{') or j['message'].startswith('"'):
-                logging.error(f"Got a malformed message: {j['message']}")
+    color = 'brown'
+    character = {
+    "name": 'Smith',
+    "description": 'You are a shrewd coach of a team. \
+        You cannot play the game yourself. \
+        You believe that evidence and reason are the only means to a good outcome. \
+        Your role on the team is to coordinate and plan for your players. \
+        You seek only to ensure that the team reaches their stated goal. \
+        You try to steer the conversation back to the goal. \
+        The game is safe for the players.'}
+    agents.append(Character(color=color, name=character['name'], description=character['description']))
+
+    color = 'pink'
+    character = {
+    "name": 'Jones',
+    "description": 'You are a player in an escape room game. \
+        You seek every means of helping the team to its goal. \
+        You are careful that your statements are grounded in fact. \
+        You can see a blue door. The floor is mostly covered in white tiles, except for one blue tile. \
+        You cannot see the whole room. '}
+    agents.append(Character(color=color, name=character['name'], description=character['description']))
+
+    color = 'darkblue' 
+    character = {
+    "name": 'Penny',
+    "description": 'You are a player in an escape room game. \
+        You seek every means of helping the team to its goal. \
+        You are careful that your statements are grounded in fact. \
+        The floor is mostly covered in white tiles, except for one blue tile. \
+        You cannot see the whole room. '}
+    agents.append(Character(color=color, name=character['name'], description=character['description']))
+
+    conversation = ''
+    for round in range(conversation_rounds):
+        for agent in agents:
+            # initialize conversation
+            text_color = agent.color
+            name = agent.name
+            if len(chatroom.messages) == 0:
+                instructions, task = initialize_conversation(agent, goal)
+                response = openai_request_initial(instructions, task)
+            else:
+                instructions = respond_prompt(agent)
+                response = openai_request_continue(instructions, get_recent_messages_from_chatroom(chatroom))
+            logging.debug(f'Response: {response}')
+            try:
+                j = json.loads(response)
+                if j['message'].startswith('{') or j['message'].startswith('"'):
+                    logging.error(f"Got a malformed message: {j['message']}")
+                    continue
+            except:
+                logging.exception(f"Could not parse response: {response}")
                 continue
-        except:
-            logging.exception(f"Could not parse response: {response}")
-            continue
-        # wait some seconds 
-        time.sleep(2)
+            # wait some seconds 
+            time.sleep(2)
 
-        # add response to conversation after linebreak
-        print(f'{name}: {response}')
-        send_message_to_chatroom(message=j['message'], username=name)
-        conversation += ' ' + f'<p style="color: {text_color};"><b>{name}</b>: {response}</p> \n'
+            # add response to conversation after linebreak
+            print(f'{name}: {response}')
+            send_message_to_chatroom(message=j['message'], chatroom=chatroom, username=name)
+            conversation += ' ' + f'<p style="color: {text_color};"><b>{name}</b>: {response}</p> \n'
 
-        filename = f'{path}/GPTconversation_{timestamp}.html'
-        with open(filename, 'w') as f:
-            f.write(conversation)
+            filename = f'{path}/GPTconversation_{timestamp}.html'
+            with open(filename, 'w') as f:
+                f.write(conversation)
+
